@@ -22,7 +22,7 @@ class GmailService {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      'http://localhost'  // Updated redirect URI
+      'http://localhost'
     );
   }
 
@@ -30,10 +30,13 @@ class GmailService {
     const url = this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: ['https://www.googleapis.com/auth/gmail.readonly'],
-      prompt: 'consent'  // Added to force consent screen
+      prompt: 'consent'
     });
 
     console.log('Authorize this app by visiting this URL:', url);
+    console.log('\nAfter authorization, Google will redirect you to localhost.');
+    console.log('Since localhost is not running a server, you\'ll see an error page.');
+    console.log('Copy the "code" parameter from the URL and paste it here.\n');
 
     const rl = readline.createInterface({
       input: process.stdin,
@@ -41,16 +44,21 @@ class GmailService {
     });
 
     const code = await new Promise<string>((resolve) => {
-      rl.question('Enter the code from that page here: ', (code) => {
+      rl.question('Enter the code from the URL here: ', (code) => {
         rl.close();
         resolve(code);
       });
     });
 
-    const { tokens } = await this.oauth2Client.getToken(code);
-    this.oauth2Client.setCredentials(tokens);
-    writeFileSync(this.TOKEN_PATH, JSON.stringify(tokens));
-    console.log('Token stored to', this.TOKEN_PATH);
+    try {
+      const { tokens } = await this.oauth2Client.getToken(code);
+      this.oauth2Client.setCredentials(tokens);
+      writeFileSync(this.TOKEN_PATH, JSON.stringify(tokens));
+      console.log('Token stored successfully to', this.TOKEN_PATH);
+    } catch (error) {
+      console.error('Error getting tokens:', error);
+      throw error;
+    }
   }
 
   async authorize() {
