@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import { writeFileSync } from 'fs';
-import { format, sub } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -31,15 +31,12 @@ class GmailService {
     });
 
     console.log('Authorize this app by visiting this URL:', url);
-    
-    // In a real application, you would handle the OAuth2 callback
-    // and token management more robustly
-    // This is a simplified version for demonstration
   }
 
-  async getEmails(startDate: Date, endDate: Date): Promise<Email[]> {
+  async getEmails(date: Date): Promise<Email[]> {
     const gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
-    const query = `after:${format(startDate, 'yyyy/MM/dd')} before:${format(endDate, 'yyyy/MM/dd')}`;
+    const formattedDate = format(date, 'yyyy/MM/dd');
+    const query = `after:${formattedDate} before:${formattedDate}`;
 
     try {
       const response = await gmail.users.messages.list({
@@ -78,13 +75,10 @@ class GmailService {
     }
   }
 
-  async saveEmailsToFile(days: number = 7) {
-    const endDate = new Date();
-    const startDate = sub(endDate, { days });
-
+  async saveEmailsForDate(date: Date) {
     try {
-      const emails = await this.getEmails(startDate, endDate);
-      const fileName = `emails_${format(startDate, 'yyyy-MM-dd')}_to_${format(endDate, 'yyyy-MM-dd')}.json`;
+      const emails = await this.getEmails(date);
+      const fileName = `emails_${format(date, 'yyyy-MM-dd')}.json`;
       
       writeFileSync(fileName, JSON.stringify(emails, null, 2));
       console.log(`Emails saved to ${fileName}`);
@@ -97,9 +91,10 @@ class GmailService {
 
 // Usage example
 const gmailService = new GmailService();
+const targetDate = new Date(2025, 5, 4); // Note: month is 0-based, so 5 represents June
 
 // First, authorize the application
 gmailService.authorize().then(() => {
-  // After authorization, fetch and save emails from the last 7 days
-  gmailService.saveEmailsToFile(7);
+  // After authorization, fetch and save emails from June 4th, 2025
+  gmailService.saveEmailsForDate(targetDate);
 });
