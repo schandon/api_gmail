@@ -22,14 +22,15 @@ class GmailService {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
+      'http://localhost'  // Updated redirect URI
     );
   }
 
   private async getNewToken(): Promise<void> {
     const url = this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
-      scope: ['https://www.googleapis.com/auth/gmail.readonly']
+      scope: ['https://www.googleapis.com/auth/gmail.readonly'],
+      prompt: 'consent'  // Added to force consent screen
     });
 
     console.log('Authorize this app by visiting this URL:', url);
