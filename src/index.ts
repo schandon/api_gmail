@@ -1,7 +1,8 @@
 import { google } from 'googleapis';
-import { writeFileSync } from 'fs';
-import { format, parseISO } from 'date-fns';
+import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { format } from 'date-fns';
 import dotenv from 'dotenv';
+import readline from 'readline';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ interface Email {
 
 class GmailService {
   private oauth2Client;
+  private TOKEN_PATH = 'token.json';
 
   constructor() {
     this.oauth2Client = new google.auth.OAuth2(
@@ -24,13 +26,44 @@ class GmailService {
     );
   }
 
-  async authorize() {
+  private async getNewToken(): Promise<void> {
     const url = this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: ['https://www.googleapis.com/auth/gmail.readonly']
     });
 
     console.log('Authorize this app by visiting this URL:', url);
+
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    const code = await new Promise<string>((resolve) => {
+      rl.question('Enter the code from that page here: ', (code) => {
+        rl.close();
+        resolve(code);
+      });
+    });
+
+    const { tokens } = await this.oauth2Client.getToken(code);
+    this.oauth2Client.setCredentials(tokens);
+    writeFileSync(this.TOKEN_PATH, JSON.stringify(tokens));
+    console.log('Token stored to', this.TOKEN_PATH);
+  }
+
+  async authorize() {
+    try {
+      if (existsSync(this.TOKEN_PATH)) {
+        const token = JSON.parse(readFileSync(this.TOKEN_PATH, 'utf-8'));
+        this.oauth2Client.setCredentials(token);
+      } else {
+        await this.getNewToken();
+      }
+    } catch (error) {
+      console.error('Error during authorization:', error);
+      await this.getNewToken();
+    }
   }
 
   async getEmails(date: Date): Promise<Email[]> {
